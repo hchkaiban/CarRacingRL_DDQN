@@ -22,11 +22,11 @@ from SumTree import SumTree
 import numpy as np
 
 ModelsPath = CarConfig.ModelsPath
-LoadWeithsAndTest = False
+LoadWeithsAndTest = True
 
 IMAGE_WIDTH = 96
 IMAGE_HEIGHT = 96
-IMAGE_STACK = 2
+IMAGE_STACK = 3
 IMAGE_SIZE = (IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_STACK)
 
 LEARNING_RATE = 0.001
@@ -36,7 +36,7 @@ action_buffer = np.array([
                     [0.0, 0.0, 0.0],     #Brake
                     [-0.6, 0.05, 0.0],   #Sharp left
                     [0.6, 0.05, 0.0],    #Sharp right
-                    [0.0, 0.3, 0.0]] )    #Staight
+                    [0.0, 0.3, 0.0]] )   #Staight
 
 NumberOfDiscActions = len(action_buffer)
     
@@ -75,9 +75,10 @@ class Brain:
         x = brain_in
         x = Convolution2D(16, (16,16), strides=(2,2), activation='relu')(x)
         x = Convolution2D(32, (4,4), strides=(2,2), activation='relu')(x)
-        #x = Convolution2D(32, (3,3), strides=(2,2), activation='relu')(x)
+        x = Convolution2D(32, (3,3), strides=(2,2), activation='relu')(x)
         x = Flatten(name='flattened')(x)
-        x = Dense(126, activation='relu')(x)
+        
+        x = Dense(256, activation='relu')(x)
         
         x = Dense(self.actionCnt, activation="linear")(x)
         
@@ -140,13 +141,13 @@ class Memory:   # stored as ( s, a, r, s_ ) in SumTree
 
 #-------------------- AGENT ---------------------------
 
-MEMORY_CAPACITY = int(2e4)
-BATCH_SIZE = 300
+MEMORY_CAPACITY = int(4e4)
+BATCH_SIZE = 320
 
 MAX_REWARD = 100
 
 MAX_NB_EPISODES = int(1e3) #total episodes = random + larning agent
-MAX_NB_STEP = 1000
+MAX_NB_STEP = 1200
 
 GAMMA = 0.97
 MAX_EPSILON = 1
@@ -373,7 +374,7 @@ class Environment:
                     s[:,:,IMAGE_STACK-1] = img
             
             if(self.step % 10) == 0:
-                print('Step:', self.step, 'action:',act1, 'R: %.1f' % R)
+                print('Step:', self.step, 'action:',act, 'R: %.1f' % R)
             
             self.step += 1
             
