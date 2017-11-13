@@ -190,7 +190,7 @@ MIN_EPSILON = 0.07
 EXPLORATION_STOP = int(MAX_NB_STEP*10)   # at this step epsilon will be 0.01
 LAMBDA = - math.log(0.01) / EXPLORATION_STOP  # speed of decay fn of episodes of learning agent
 
-UPDATE_TARGET_FREQUENCY = int(2e2)  #Threshold on counted learning agent's steps
+UPDATE_TARGET_FREQUENCY = int(2e1)  #Threshold on counted learning agent's steps
 
 ACTION_REPEAT = 1
 
@@ -246,15 +246,17 @@ class Agent:
         
         p_ = agent.brain.predict(states_, target=False)
         pTarget_ = agent.brain.predict(states_, target=True)
-        act_ctr = np.zeros(self.actionCnt)
+        
+        act_ctr = np.zeros([len(batch),self.actionCnt])
+        
         for i in range(len(batch)):
             o = batch[i][1]
             s = o[0]; a = o[1]; r = o[2]; s_ = o[3]
             
             a = SelectArgAction(a)
             t = p[i]
-            act_ctr[a] += 1
-            
+            act_ctr[i,a] += 1
+
             oldVal = t[a]
             if s_ is None:
                 t[a] = r
@@ -267,7 +269,7 @@ class Agent:
             #sec_bets = t[np.argsort(t)[::-1][1]]
             if self.steps % 20 == 0 and i == len(batch)-1:
                 print('t',t[a], 'r: %.4f' % r,'mean t',np.mean(t))
-                print ('actions count per batch: ', act_ctr)
+                print ('actions count per batch: ', act_ctr.mean(axis=0))
                    
             self.errors[i] = abs(oldVal - t[a])
             
@@ -326,9 +328,9 @@ class Environment:
     def run(self, agent):              
         img = self.env.reset()
         #img =  CarConfig.rgb2gray(img)
-        s = np.zeros(self.env.observation_space.shape)
-        
-        s_ = s
+        #s = np.zeros(self.env.observation_space.shape)
+        s = img
+
         #a = [0.0, 0.3, 0.0]
         R = 0
         self.step = 0
@@ -443,14 +445,10 @@ if __name__ == "__main__":
             else:
                 print('Load pre-trained agent and learn')
                 agent.brain.model.load_weights(ModelsPath+"Pendulum_DDQN_model.h5")
-                agent.brain.updateTargetModel()
                 
                 try :
                     #Load saved agent paramters and previous rewards
-                    MemData = CarConfig.load_pickle(ModelsPath+"Pendulum_DDQN_model.h5"+"MemData")
-                    agent.memory.tree.data = MemData
-                    MemTree = CarConfig.load_pickle(ModelsPath+"Pendulum_DDQN_model.h5"+"MemTree")
-                    agent.memory.tree.Tree = MemTree
+                    agent.memory = CarConfig.load_pickle(ModelsPath+"Pendulum_DDQN_model.h5"+"Memory")
                     Params = CarConfig.load_pickle(ModelsPath+"Pendulum_DDQN_model.h5"+"AgentParam")
                     agent.epsilon = Params[0]
                     agent.steps = Params[1]
@@ -462,7 +460,7 @@ if __name__ == "__main__":
                     
                     env.reward = CarConfig.load_pickle(ModelsPath+"Pendulum_DDQN_model.h5"+"Rewards")
                     
-                    del MemData, MemTree, Params, opt
+                    del Params, opt
                 except:
                     print("Invalid saved agent parameters to load")
                     print("Initialization with random agent. Fill memory")
@@ -470,12 +468,12 @@ if __name__ == "__main__":
                     while randomAgent.exp < MEMORY_CAPACITY:
                         env.run(randomAgent)
                         print(randomAgent.exp, "/", MEMORY_CAPACITY)
-            
+                    
                     agent.memory = randomAgent.memory
                     randomAgent = None
+                    agent.maxEpsilone = MAX_EPSILON/6
                 
-                agent.maxEpsilone = MAX_EPSILON/5
-                
+                agent.brain.updateTargetModel()
                 print("Starts learning")
                 
                 while env.episode < MAX_NB_EPISODES:

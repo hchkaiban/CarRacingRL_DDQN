@@ -1,36 +1,64 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Nov  6 10:22:59 2017
-
-@author: hc
-"""
-
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Thu Nov  2 16:03:46 2017
 
 @author: hc
 """
-# Add checkpoint callback
-# End episode on greed screen?
 
+#from keras.callbacks import History, ModelCheckpoint
+#
+#class PlotHistory(History):
+#    def __init__(self, file_name='history.png'):
+#        History.__init__(self)
+#        self.file_name = file_name
+#    def on_epoch_end(self, epoch, logs={}):
+#        History.on_epoch_end(self, epoch, logs)
+#        self.plot_logs()
+#    def plot_logs(self):
+#        evaluation_cost = self.history['val_loss']
+#        evaluation_accuracy = self.history['val_acc']
+#        training_cost = self.history['loss']
+#        training_accuracy = self.history['acc']
+#        f, (ax1, ax2) = plt.subplots(1, 2)
+#        f.set_figwidth(10)
+#        ax1.plot(evaluation_cost,label= 'test')
+#        ax1.plot(training_cost, label='train')
+#        ax1.set_title('Cost')
+#        ax1.legend()
+#        ax2.plot(evaluation_accuracy, label='test')
+#        ax2.plot(training_accuracy, label='train')
+#        ax2.set_title('Accuracy')
+#        ax2.legend(loc='lower right')
+#        f.savefig(self.file_name)
+#        plt.close(f)
+# 
+#plot_history_callback = PlotHistory('cifar10.png') 
+#save_snapshots = ModelCheckpoint('cifar10.h5') 
+#history = model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
+#          verbose=2, validation_data=(X_test, Y_test), 
+#                    callbacks=[plot_history_callback, save_snapshots])
+     
+        
 import CarConfig
 import random, math, gym
 from SumTree import SumTree
 import numpy as np
+import pandas as pd
 
 ModelsPath = CarConfig.ModelsPath
-LoadWeithsAndTest = True
+LoadWeithsAndTest = False   #Validate model, no training
+LoadWeithsAndTrain = False   #Load model and saved agent and train further
+TrainEnvRender = True       #Diplay game while training
+
 
 IMAGE_WIDTH = 96
 IMAGE_HEIGHT = 96
-IMAGE_STACK = 3
+IMAGE_STACK = 4     
 IMAGE_SIZE = (IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_STACK)
 
-LEARNING_RATE = 0.001
-#HUBER_LOSS_DELTA = 2.0
+LEARNING_RATE = 0.0005      #atari 0.00025
+HUBER_LOSS_DELTA = 1.0
+
+dropout_thr = 0.1
 
 action_buffer = np.array([
                     [0.0, 0.0, 0.0],     #Brake
@@ -48,13 +76,30 @@ def SelectArgAction(Act):
         if np.all(Act == action_buffer[i]):
             return i
     raise ValueError('SelectArgAction: Act not in action_buffer')
-#    
+
+  
 #def f_softmax(x):
 #    """Compute softmax values for each sets of scores in x."""
 #    e_x = np.exp(x - np.max(x))
 #    return e_x / e_x.sum(axis=0)
 
+
+def huber_loss(y_true, y_pred):
+    from keras import backend as K
+    err = y_true - y_pred
+
+    cond = K.abs(err) <= HUBER_LOSS_DELTA
+    if cond == True:
+        loss = 0.5 * K.square(err)
+
+    else:
+        loss = 0.5 * HUBER_LOSS_DELTA**2 + HUBER_LOSS_DELTA * (K.abs(err) - HUBER_LOSS_DELTA)
+
+    return K.mean(loss)
+
+
 #-------------------- BRAIN ---------------------------
+import keras
 import keras.optimizers as Kopt
 from keras.layers import Convolution2D
 from keras.layers import Dense, Flatten, Input, concatenate, Dropout
@@ -66,45 +111,77 @@ class Brain:
     def __init__(self, stateCnt, actionCnt):
         self.stateCnt = stateCnt
         self.actionCnt = actionCnt
-
+        
         self.model = self._createModel()
-        self.model_ = self._createModel()  # target network
+        self.model_ = self._createModel()  # target network 
 
+        self.ModelsPath_cp = ModelsPath+"CarRacing_DDQN_model_cp.h5"
+        self.ModelsPath_cp_per = ModelsPath+"CarRacing_DDQN_model_cp_per.h5"
+        
+        save_best = keras.callbacks.ModelCheckpoint(self.ModelsPath_cp,
+                                                monitor='loss',
+                                                verbose=1,
+                                                save_best_only=True,
+                                                mode='min',
+                                                period=20)
+        save_per = keras.callbacks.ModelCheckpoint(self.ModelsPath_cp_per,
+                                                monitor='loss',
+                                                verbose=1,
+                                                save_best_only=False,
+                                                mode='min',
+                                                period=400)
+        
+#        early_stop = keras.callbacks.EarlyStopping(monitor='loss',
+#                                           min_delta=0.001,   
+#                                           patience=0,
+#                                           verbose=1,
+#                                           mode='auto')
+    
+        self.callbacks_list = [save_best, save_per]#, early_stop]
+  
+      
     def _createModel(self):
         brain_in = Input(shape=self.stateCnt, name='brain_in')
         x = brain_in
-        x = Convolution2D(16, (16,16), strides=(2,2), activation='relu')(x)
+        x = Convolution2D(16, (8,8), strides=(2,2), activation='relu')(x)
         x = Convolution2D(32, (4,4), strides=(2,2), activation='relu')(x)
-        x = Convolution2D(32, (3,3), strides=(2,2), activation='relu')(x)
+        #x = Convolution2D(32, (3,3), strides=(2,2), activation='relu')(x)
         x = Flatten(name='flattened')(x)
-        
         x = Dense(256, activation='relu')(x)
-        
         x = Dense(self.actionCnt, activation="linear")(x)
         
         model = Model(inputs=brain_in, outputs=x)
-        opt = Kopt.RMSprop(lr=LEARNING_RATE)
-        model.compile(loss='mean_squared_error', optimizer=opt)
+        
+        self.opt = Kopt.RMSprop(lr=LEARNING_RATE)
+        #self.opt = Kopt.RMSprop()
+        
+        #'mean_squared_error'
+        model.compile(loss=huber_loss, optimizer=self.opt)
       
         plot_model(model, to_file='brain_model.png', show_shapes = True)
     
         return model
+ 
     
     def train(self, x, y, epochs=1, verbose=0):
-        self.model.fit(x, y, batch_size=30, epochs=epochs, verbose=verbose)
-
+        self.model.fit(x, y, batch_size=(BATCH_SIZE//2), epochs=epochs, verbose=verbose, callbacks=self.callbacks_list)
+        
+   
     def predict(self, s, target=False):
         if target:
             return self.model_.predict(s)
         else:
             return self.model.predict(s)
-
+    
+    
     def predictOne(self, s, target=False):
         x = s[np.newaxis,:,:,:]
         return self.predict(x, target)
-
+    
+   
     def updateTargetModel(self):
         self.model_.set_weights(self.model.get_weights())
+
 
 #-------------------- MEMORY --------------------------
 class Memory:   # stored as ( s, a, r, s_ ) in SumTree
@@ -141,24 +218,26 @@ class Memory:   # stored as ( s, a, r, s_ ) in SumTree
 
 #-------------------- AGENT ---------------------------
 
-MEMORY_CAPACITY = int(4e4)
-BATCH_SIZE = 320
+MEMORY_CAPACITY = int(2e4)  #atari 1e6, shall be ratio of number of frames
+BATCH_SIZE = 32             #atari is 32
 
 MAX_REWARD = 100
+GREEN_SC_PLTY = 1
 
-MAX_NB_EPISODES = int(1e3) #total episodes = random + larning agent
+MAX_NB_EPISODES = int(1e3) 
 MAX_NB_STEP = 1200
 
-GAMMA = 0.97
+GAMMA = 0.99        #atari 0.99
 MAX_EPSILON = 1
-MIN_EPSILON = 0.05
+MIN_EPSILON = 0.1   #atari 0.1
 
-EXPLORATION_STOP = int(MAX_NB_STEP*50)   # at this step epsilon will be 0.01
-LAMBDA = - math.log(0.01) / EXPLORATION_STOP  # speed of decay fn of episodes of learning agent
+EXPLORATION_STOP = int(MAX_NB_STEP*10)          # at this step epsilon will be MIN_EPSILON
+LAMBDA = - math.log(0.001) / EXPLORATION_STOP    # speed of decay fn of episodes of learning agent
 
-UPDATE_TARGET_FREQUENCY = int(2e2)  #Threshold on counted learning agent's steps
+UPDATE_TARGET_FREQUENCY = int(20)              #Threshold on counted learning agent's steps # atari 10 000
 
 ACTION_REPEAT = 4
+ACTION_REPEAT_RAND = 20
 
 class Agent:
     steps = 0
@@ -172,11 +251,12 @@ class Agent:
         self.brain = Brain(stateCnt, self.actionCnt)
         self.no_state = np.zeros(stateCnt)
         self.x = np.zeros((BATCH_SIZE,)+IMAGE_SIZE)
-        self.y = np.zeros([BATCH_SIZE, self.actionCnt])
+        self.y = np.zeros([BATCH_SIZE, self.actionCnt])     
         self.errors = np.zeros(BATCH_SIZE)
         self.rand = False
         
         self.agentType = 'Learning'
+        self.maxEpsilone = MAX_EPSILON
         
     def act(self, s):
         if random.random() < self.epsilon:
@@ -197,10 +277,10 @@ class Agent:
 
         if self.steps % UPDATE_TARGET_FREQUENCY == 0:
             self.brain.updateTargetModel()
-            print
+            #print ("Target network update")
         # slowly decrease Epsilon based on our eperience
         self.steps += 1
-        self.epsilon = MIN_EPSILON + (MAX_EPSILON - MIN_EPSILON) * math.exp(-LAMBDA * self.steps)
+        self.epsilon = MIN_EPSILON + (self.maxEpsilone - MIN_EPSILON) * math.exp(-LAMBDA * self.steps)
 
     def _getTargets(self, batch):
         states = np.array([ o[1][0] for o in batch ])
@@ -210,14 +290,16 @@ class Agent:
         
         p_ = agent.brain.predict(states_, target=False)
         pTarget_ = agent.brain.predict(states_, target=True)
-
+        act_ctr = np.zeros(self.actionCnt)
+        
         for i in range(len(batch)):
             o = batch[i][1]
             s = o[0]; a = o[1]; r = o[2]; s_ = o[3]
             
             a = SelectArgAction(a)
             t = p[i]
-            
+            act_ctr[a] += 1
+            # Append target for plotting
             oldVal = t[a]
             if s_ is None:
                 t[a] = r
@@ -228,8 +310,9 @@ class Agent:
             self.y[i] = t
             
             #sec_bets = t[np.argsort(t)[::-1][1]]
-            if self.steps % 20 == 0 and i == len(batch)//2:
-                print('a',a, 't',t[a], 'r: %.4f' % r,'mean t',np.mean(t))
+            if self.steps % 20 == 0 and i == len(batch)-1:
+                print('t',t[a], 'r: %.4f' % r,'mean t',np.mean(t))
+                print ('act cnt: ', act_ctr)
                    
             self.errors[i] = abs(oldVal - t[a])
 
@@ -261,6 +344,7 @@ class RandomAgent:
         self.agentType = 'Random'
 
     def act(self, s):
+        np.random.seed(1)
         best_act = np.random.randint(self.actionCnt)
         return SelectAction(best_act), SelectAction(best_act)
 
@@ -289,27 +373,32 @@ class Environment:
         
     def run(self, agent):              
         img = self.env.reset()
-        img =  CarConfig.rgb2gray(img)
+        img =  CarConfig.rgb2gray(img, True)
         s = np.zeros(IMAGE_SIZE)
         for i in range(IMAGE_STACK):
             s[:,:,i] = img
             
         s_ = s
-        #a = [0.0, 0.3, 0.0]
         R = 0
         self.step = 0
 
         while True: 
+            if agent.agentType=='Learning' : 
+                act_rep = ACTION_REPEAT
+                if TrainEnvRender == True :
+                    self.env.render('human')
+            else:
+                act_rep = ACTION_REPEAT_RAND
+                
             #img_old = img
-            if self.step % ACTION_REPEAT == 0:
+            if self.step % act_rep == 0:
                 a, a_soft = agent.act(s)
             
-                img, r, done, info = self.env.step(a)
-            #s_ = np.array([s[1], processImage(img)]) #last two screens
+                img_rgb, r, done, info = self.env.step(a)
             
                 if not done:
-                    img =  CarConfig.rgb2gray(img)
-                #for i in range(IMAGE_STACK-1,-1,-1):    #count down
+                    img =  CarConfig.rgb2gray(img_rgb, True)
+                    #for i in range(IMAGE_STACK-1,-1,-1):    #count down
                     for i in range(IMAGE_STACK-1):
                         s_[:,:,i] = s_[:,:,i+1]
                     s_[:,:,IMAGE_STACK-1] = img
@@ -318,7 +407,7 @@ class Environment:
                    s_ = None
 
                 R += r
-                r = R/MAX_REWARD    
+                r = (R/MAX_REWARD) - ( GREEN_SC_PLTY * abs(np.mean(img_rgb[:,:,1]) - 150) ) / (185.1 - 150)    
                 #r = np.clip(r, -1 ,1)
             
                 agent.observe( (s, a, r, s_) )
@@ -326,22 +415,23 @@ class Environment:
                 s = s_
             
             if (self.step % 20 == 0) and (agent.agentType=='Learning'):
-                print('step:', self.step, 'R: %.1f' % R, a_soft, 'rand:', agent.rand)
+                print('step:', self.step, 'R: %.1f' % R, a, 'rand:', agent.rand)
             
             self.step += 1
             
-            if done or (R<-5) or (self.step > MAX_NB_STEP):
+            if done or (R<-5) or (self.step > MAX_NB_STEP) or np.mean(img_rgb[:,:,1]) > 185.1:
                 self.episode += 1
                 self.reward.append(R)
+                print('Done:', done, 'R<-5:', (R<-5), 'Green>185.1:',np.mean(img_rgb[:,:,1]))
                 break
 
-        print("Episode ",self.episode,"/", MAX_NB_EPISODES, agent.agentType) 
+        print("\n Episode ",self.episode,"/", MAX_NB_EPISODES, agent.agentType) 
         print("Avg Episode R:", R/self.step, "Total R:", sum(self.reward))
     
     
     def test(self, agent):
-        img = self.env.reset()
-        img = CarConfig.rgb2gray(img)
+        img= self.env.reset()
+        img = CarConfig.rgb2gray(img, True)
         s = np.zeros(IMAGE_SIZE)
         for i in range(IMAGE_STACK):
             s[:,:,i] = img
@@ -351,38 +441,38 @@ class Environment:
         done = False
         while True :
             self.env.render('human')
-            
-            if self.step == 0:
-                act = SelectAction(3)
-                act1=[0,0,0,0]
-            else:
-                
-                #img_old = img
-                if self.step % ACTION_REPEAT == 0:
-                    if(agent.agentType == 'Learning'):
-                        act1 = agent.brain.predictOne(s)
-                        act = SelectAction(np.argmax(act1))
-                    else:
-                        act = agent.act(s)
-                
-                    img, r, done, info = self.env.step(act)
-                    img = CarConfig.rgb2gray(img)
-                    R += r
-            
-                    for i in range(IMAGE_STACK-1):
-                        s[:,:,i] = s[:,:,i+1]
-                    s[:,:,IMAGE_STACK-1] = img
+                            
+            #img_old = img
+            if self.step % ACTION_REPEAT == 0:
+                if(agent.agentType == 'Learning'):
+                    act1 = agent.brain.predictOne(s)
+                    act = SelectAction(np.argmax(act1))
+                else:
+                    act = agent.act(s)
+                    
+                if self.step <= 8:
+                    act = SelectAction(3)
+                    
+                img_rgb, r, done, info = self.env.step(act)
+                img = CarConfig.rgb2gray(img_rgb, True)
+                R += r
+        
+                for i in range(IMAGE_STACK-1):
+                    s[:,:,i] = s[:,:,i+1]
+                s[:,:,IMAGE_STACK-1] = img
             
             if(self.step % 10) == 0:
                 print('Step:', self.step, 'action:',act, 'R: %.1f' % R)
-            
+                print(np.mean(img_rgb[:,:,0]), np.mean(img_rgb[:,:,1]), np.mean(img_rgb[:,:,2]))
             self.step += 1
             
-            if done or (R<-5) or (agent.steps > MAX_NB_STEP):
+            if done or (R<-5) or (agent.steps > MAX_NB_STEP) or np.mean(img_rgb[:,:,1]) > 185.1:
                 R = 0
                 self.step = 0
+                print('Done:', done, 'R<-5:', (R<-5), 'Green>185.1:',np.mean(img_rgb[:,:,1]))
                 break
-            
+
+           
 #-------------------- MAIN ----------------------------
 if __name__ == "__main__":
 
@@ -390,32 +480,73 @@ if __name__ == "__main__":
     env = Environment(PROBLEM)
     
     stateCnt  = IMAGE_SIZE
-    
+
     actionCnt = env.env.action_space.shape[0] #env.env.action_space.n
     assert action_buffer.shape[1] == actionCnt, "Lenght of Env action space does not match action buffer"
     
+    random.seed(901)
     agent = Agent(stateCnt, NumberOfDiscActions)
     randomAgent = RandomAgent(NumberOfDiscActions)
     
     try:
         #Train agent
         if LoadWeithsAndTest == False:
-            print("Initialization with random agent. Fill memory")
-            while randomAgent.exp < MEMORY_CAPACITY:
-                env.run(randomAgent)
-                print(randomAgent.exp, "/", MEMORY_CAPACITY)
+            if LoadWeithsAndTrain == False:
+                print("Initialization with random agent. Fill memory")
+                while randomAgent.exp < MEMORY_CAPACITY:
+                    env.run(randomAgent)
+                    print(randomAgent.exp, "/", MEMORY_CAPACITY)
         
-            agent.memory = randomAgent.memory
-            randomAgent = None
-        
-            print("Starts learning")
+                agent.memory = randomAgent.memory
+                randomAgent = None
+                
+                print("Starts learning")
+                
+                while env.episode < MAX_NB_EPISODES:
+                    env.run(agent)
+                
+                CarConfig.save_DDQL(ModelsPath, "CarRacing_DDQN_model.h5", agent, env.reward)
+                
+            else:
+                #from keras.models import load_model
+                
+                print('Load pre-trained agent and learn')
+                agent.brain.model.load_weights(ModelsPath+"CarRacing_DDQN_model.h5")
+                #agent.brain.model = load_model(ModelsPath+"CarRacing_DDQN_model.h5")
+                agent.brain.updateTargetModel()
+                try :
+                    agent.memory = CarConfig.load_pickle(ModelsPath+"Pendulum_DDQN_model.h5"+"Memory")
+                    Params = CarConfig.load_pickle(ModelsPath+"CarRacing_DDQN_model.h5"+"AgentParam")
+                    agent.epsilon = Params[0]
+                    agent.steps = Params[1]
+                    opt = Params[2]
+                    agent.brain.opt.decay.set_value(opt['decay'])
+                    agent.brain.opt.epsilon = opt['epsilon']
+                    agent.brain.opt.lr.set_value(opt['lr'])
+                    agent.brain.opt.rho.set_value(opt['rho'])
+                    #gent.brain.opt.set_weights(Params[2])
             
-            while env.episode < MAX_NB_EPISODES:
-                env.run(agent)
+                    env.reward = CarConfig.load_pickle(ModelsPath+"CarRacing_DDQN_model.h5"+"Rewards")
+                    del Params, opt
+                except:
+                    print("Invalid DDQL_Memory_.csv to load")
+                    print("Initialization with random agent. Fill memory")
+                    #Memory empty or corrupted, reload
+                    while randomAgent.exp < MEMORY_CAPACITY:
+                        env.run(randomAgent)
+                        print(randomAgent.exp, "/", MEMORY_CAPACITY)
             
-            agent.brain.model.save(ModelsPath+"CarRacing_DDQN_model.h5")  
-            print("CarRacing_DDQN_model.h5 saved")
-            
+                    agent.memory = randomAgent.memory
+                    randomAgent = None
+                
+                    agent.maxEpsilone = MAX_EPSILON/5
+                
+                print("Starts learning")
+                
+                while env.episode < MAX_NB_EPISODES:
+                    env.run(agent)
+                
+                CarConfig.save_DDQL(ModelsPath, "CarRacing_DDQN_model.h5", agent, env.reward)
         else:
             print('Load agent and play')
             agent.brain.model.load_weights(ModelsPath+"CarRacing_DDQN_model.h5")
@@ -424,8 +555,7 @@ if __name__ == "__main__":
             while done_ctr < 5 :
                 env.test(agent)
                 done_ctr += 1
-                
-                
+                              
     except KeyboardInterrupt:
         print('User interrupt')
         env.env.close()
@@ -433,9 +563,8 @@ if __name__ == "__main__":
         if LoadWeithsAndTest == False:
              print('Save model: Y or N?')
              save = input()
-             if save == 'Y':
-                 agent.brain.model.save(ModelsPath+"CarRacing_DDQN_model.h5")
-                 print("CarRacing_DDQN_model.h5 saved")
+             if save.lower() == 'y':
+                 CarConfig.save_DDQL(ModelsPath, "CarRacing_DDQN_model.h5", agent, env.reward)
              else:
                 print('Model discarded')
             
