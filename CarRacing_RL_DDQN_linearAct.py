@@ -3,62 +3,33 @@ Created on Thu Nov  2 16:03:46 2017
 
 @author: hc
 """
-
-#from keras.callbacks import History, ModelCheckpoint
-#
-#class PlotHistory(History):
-#    def __init__(self, file_name='history.png'):
-#        History.__init__(self)
-#        self.file_name = file_name
-#    def on_epoch_end(self, epoch, logs={}):
-#        History.on_epoch_end(self, epoch, logs)
-#        self.plot_logs()
-#    def plot_logs(self):
-#        evaluation_cost = self.history['val_loss']
-#        evaluation_accuracy = self.history['val_acc']
-#        training_cost = self.history['loss']
-#        training_accuracy = self.history['acc']
-#        f, (ax1, ax2) = plt.subplots(1, 2)
-#        f.set_figwidth(10)
-#        ax1.plot(evaluation_cost,label= 'test')
-#        ax1.plot(training_cost, label='train')
-#        ax1.set_title('Cost')
-#        ax1.legend()
-#        ax2.plot(evaluation_accuracy, label='test')
-#        ax2.plot(training_accuracy, label='train')
-#        ax2.set_title('Accuracy')
-#        ax2.legend(loc='lower right')
-#        f.savefig(self.file_name)
-#        plt.close(f)
-# 
-#plot_history_callback = PlotHistory('cifar10.png') 
-#save_snapshots = ModelCheckpoint('cifar10.h5') 
-#history = model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=nb_epoch,
-#          verbose=2, validation_data=(X_test, Y_test), 
-#                    callbacks=[plot_history_callback, save_snapshots])
-     
         
 import CarConfig
 import random, math, gym
 from SumTree import SumTree
 import numpy as np
-import pandas as pd
+
 
 ModelsPath = CarConfig.ModelsPath
-LoadWeithsAndTest = False   #Validate model, no training
-LoadWeithsAndTrain = False   #Load model and saved agent and train further
-TrainEnvRender = True       #Diplay game while training
+LoadWeithsAndTest = False  #Validate model, no training
+LoadWeithsAndTrain = False  #Load model and saved agent and train further
+TrainEnvRender = False       #Diplay game while training
 
+ENABLE_EPSILON_RST = True
 
 IMAGE_WIDTH = 96
 IMAGE_HEIGHT = 96
 IMAGE_STACK = 4     
 IMAGE_SIZE = (IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_STACK)
 
-LEARNING_RATE = 0.0005      #atari 0.00025
+LEARNING_RATE = 0.001     #atari 0.00025
 HUBER_LOSS_DELTA = 1.0
 
 dropout_thr = 0.1
+ENV_SEED = 2
+
+MEMORY_CAPACITY = int(1e4)  #atari 1e6, shall be ratio of number of frames
+BATCH_SIZE = 120            #atari is 32
 
 action_buffer = np.array([
                     [0.0, 0.0, 0.0],     #Brake
@@ -143,8 +114,8 @@ class Brain:
     def _createModel(self):
         brain_in = Input(shape=self.stateCnt, name='brain_in')
         x = brain_in
-        x = Convolution2D(16, (8,8), strides=(2,2), activation='relu')(x)
-        x = Convolution2D(32, (4,4), strides=(2,2), activation='relu')(x)
+        x = Convolution2D(16, (16,16), strides=(2,2), activation='relu')(x)
+        x = Convolution2D(32, (8,8), strides=(2,2), activation='relu')(x)
         #x = Convolution2D(32, (3,3), strides=(2,2), activation='relu')(x)
         x = Flatten(name='flattened')(x)
         x = Dense(256, activation='relu')(x)
@@ -218,26 +189,22 @@ class Memory:   # stored as ( s, a, r, s_ ) in SumTree
 
 #-------------------- AGENT ---------------------------
 
-MEMORY_CAPACITY = int(2e4)  #atari 1e6, shall be ratio of number of frames
-BATCH_SIZE = 32             #atari is 32
+MAX_REWARD = 10
+GREEN_SC_PLTY = 0.4
 
-MAX_REWARD = 100
-GREEN_SC_PLTY = 1
+ACTION_REPEAT = 8
 
-MAX_NB_EPISODES = int(1e3) 
-MAX_NB_STEP = 1200
+MAX_NB_EPISODES = int(10e3) 
+MAX_NB_STEP = ACTION_REPEAT * 100
 
-GAMMA = 0.99        #atari 0.99
+GAMMA = 0.99            #atari 0.99
 MAX_EPSILON = 1
-MIN_EPSILON = 0.1   #atari 0.1
+MIN_EPSILON = 0.02      #atari 0.1
 
 EXPLORATION_STOP = int(MAX_NB_STEP*10)          # at this step epsilon will be MIN_EPSILON
-LAMBDA = - math.log(0.001) / EXPLORATION_STOP    # speed of decay fn of episodes of learning agent
+LAMBDA = - math.log(0.001) / EXPLORATION_STOP   # speed of decay fn of episodes of learning agent
 
-UPDATE_TARGET_FREQUENCY = int(20)              #Threshold on counted learning agent's steps # atari 10 000
-
-ACTION_REPEAT = 4
-ACTION_REPEAT_RAND = 20
+UPDATE_TARGET_FREQUENCY = int(200)              #Threshold on counted learning agent's steps # atari 10 000
 
 class Agent:
     steps = 0
@@ -272,8 +239,8 @@ class Agent:
             return SelectAction(best_act), act_soft
 
     def observe(self, sample):  # in (s, a, r, s_) format
-        #x, y, errors = self._getTargets([(0, sample)])
-        #self.memory.add(errors[0], sample)
+        x, y, errors = self._getTargets([(0, sample)])
+        self.memory.add(errors[0], sample)
 
         if self.steps % UPDATE_TARGET_FREQUENCY == 0:
             self.brain.updateTargetModel()
@@ -309,10 +276,10 @@ class Agent:
             self.x[i] = s
             self.y[i] = t
             
-            #sec_bets = t[np.argsort(t)[::-1][1]]
+            #sec_best = t[np.argsort(t)[::-1][1]]
             if self.steps % 20 == 0 and i == len(batch)-1:
                 print('t',t[a], 'r: %.4f' % r,'mean t',np.mean(t))
-                print ('act cnt: ', act_ctr)
+                print ('act ctr: ', act_ctr)
                    
             self.errors[i] = abs(oldVal - t[a])
 
@@ -342,6 +309,7 @@ class RandomAgent:
     def __init__(self, actionCnt):
         self.actionCnt = actionCnt
         self.agentType = 'Random'
+        self.rand = True
 
     def act(self, s):
         np.random.seed(1)
@@ -362,16 +330,18 @@ class Environment:
     def __init__(self, problem):
         self.problem = problem
         self.env = gym.make(problem)
-        self.env.seed(2)
+        self.env.seed(ENV_SEED)
         from gym import envs
         envs.box2d.car_racing.WINDOW_H = 500
         envs.box2d.car_racing.WINDOW_W = 600
         
         self.episode = 0
-        self.reward = []
+        self.reward = []    
         self.step = 0
+        self.action_stuck = 0
         
-    def run(self, agent):              
+    def run(self, agent):
+        self.env.seed(ENV_SEED)              
         img = self.env.reset()
         img =  CarConfig.rgb2gray(img, True)
         s = np.zeros(IMAGE_SIZE)
@@ -381,19 +351,37 @@ class Environment:
         s_ = s
         R = 0
         self.step = 0
-
+                        
+        a_soft = a_old = np.zeros(agent.actionCnt)
+        a = action_buffer[0]
         while True: 
             if agent.agentType=='Learning' : 
-                act_rep = ACTION_REPEAT
                 if TrainEnvRender == True :
                     self.env.render('human')
-            else:
-                act_rep = ACTION_REPEAT_RAND
+ 
+
+            if self.step % ACTION_REPEAT == 0:
                 
-            #img_old = img
-            if self.step % act_rep == 0:
+                if agent.rand == False:
+                    a_old = a_soft
+                
                 a, a_soft = agent.act(s)
-            
+                
+                #Enable periodic reset of epsilon & LR to avoid local minima
+                if ENABLE_EPSILON_RST:
+                    if agent.rand == False:
+                        if a_soft.argmax() == a_old.argmax():
+                            self.action_stuck += 1
+                            if self.action_stuck >= 200:
+                                print('\n ______Stuck in local minimum, epsilon reset')
+                                agent.steps = 0
+                                agent.brain.opt.lr.set_value(LEARNING_RATE*10)
+                                
+                                self.action_stuck = 0
+                        else:
+                            self.action_stuck = max(self.action_stuck -2, 0)
+                            agent.brain.opt.lr.set_value(LEARNING_RATE)
+                        
                 img_rgb, r, done, info = self.env.step(a)
             
                 if not done:
@@ -407,14 +395,30 @@ class Environment:
                    s_ = None
 
                 R += r
-                r = (R/MAX_REWARD) - ( GREEN_SC_PLTY * abs(np.mean(img_rgb[:,:,1]) - 150) ) / (185.1 - 150)    
-                #r = np.clip(r, -1 ,1)
+                r = (r/MAX_REWARD)# - ( GREEN_SC_PLTY * abs(np.mean(img_rgb[:,:,1]) - 150) ) / (185.1 - 150)    
+                if np.mean(img_rgb[:,:,1]) > 185.0:
+                    r -= GREEN_SC_PLTY
+ 
+                r = np.clip(r, -1 ,1)
             
                 agent.observe( (s, a, r, s_) )
                 agent.replay()            
                 s = s_
             
-            if (self.step % 20 == 0) and (agent.agentType=='Learning'):
+            else:
+                img_rgb, r, done, info = self.env.step(a)
+                if not done:
+                    img =  CarConfig.rgb2gray(img_rgb, True)
+                    #for i in range(IMAGE_STACK-1,-1,-1):    #count down
+                    for i in range(IMAGE_STACK-1):
+                        s_[:,:,i] = s_[:,:,i+1]
+                    s_[:,:,IMAGE_STACK-1] = img
+                else:
+                   s_ = None
+                R += r
+                s = s_
+                
+            if (self.step % (ACTION_REPEAT * 5) == 0) and (agent.agentType=='Learning'):
                 print('step:', self.step, 'R: %.1f' % R, a, 'rand:', agent.rand)
             
             self.step += 1
@@ -430,6 +434,7 @@ class Environment:
     
     
     def test(self, agent):
+        self.env.seed(ENV_SEED)
         img= self.env.reset()
         img = CarConfig.rgb2gray(img, True)
         s = np.zeros(IMAGE_SIZE)
@@ -515,7 +520,7 @@ if __name__ == "__main__":
                 #agent.brain.model = load_model(ModelsPath+"CarRacing_DDQN_model.h5")
                 agent.brain.updateTargetModel()
                 try :
-                    agent.memory = CarConfig.load_pickle(ModelsPath+"Pendulum_DDQN_model.h5"+"Memory")
+                    agent.memory = CarConfig.load_pickle(ModelsPath+"CarRacing_DDQN_model.h5"+"Memory")
                     Params = CarConfig.load_pickle(ModelsPath+"CarRacing_DDQN_model.h5"+"AgentParam")
                     agent.epsilon = Params[0]
                     agent.steps = Params[1]
@@ -527,6 +532,7 @@ if __name__ == "__main__":
                     #gent.brain.opt.set_weights(Params[2])
             
                     env.reward = CarConfig.load_pickle(ModelsPath+"CarRacing_DDQN_model.h5"+"Rewards")
+                    
                     del Params, opt
                 except:
                     print("Invalid DDQL_Memory_.csv to load")

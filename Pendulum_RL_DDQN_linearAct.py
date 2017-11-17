@@ -190,7 +190,7 @@ MIN_EPSILON = 0.07
 EXPLORATION_STOP = int(MAX_NB_STEP*10)   # at this step epsilon will be 0.01
 LAMBDA = - math.log(0.01) / EXPLORATION_STOP  # speed of decay fn of episodes of learning agent
 
-UPDATE_TARGET_FREQUENCY = int(2e1)  #Threshold on counted learning agent's steps
+UPDATE_TARGET_FREQUENCY = int(200)  #Threshold on counted learning agent's steps
 
 ACTION_REPEAT = 1
 
@@ -228,8 +228,8 @@ class Agent:
             return SelectAction(best_act), act_soft
 
     def observe(self, sample):  # in (s, a, r, s_) format
-        #x, y, errors = self._getTargets([(0, sample)])
-        #self.memory.add(errors[0], sample)
+        x, y, errors = self._getTargets([(0, sample)])
+        self.memory.add(errors[0], sample)
 
         if self.steps % UPDATE_TARGET_FREQUENCY == 0:
             self.brain.updateTargetModel()

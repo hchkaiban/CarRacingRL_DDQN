@@ -22,12 +22,17 @@ ConvFolder2Gray = False #If True, recorded RGB data is converted to Gray
 
 #Number of images to stack and train (memory)
 #Shall be Either 4 or 0 (1 same as 0) else keras model in CarRacing_Learn shall be updated either
+
+
 Temporal_Buffer = 4 
 
 
 #try to feed in diffs of images and remove bias in CNN
 # Cyclic epslilon decay (reinit after a number of preriods - same possible for learning rate)
 #Coursera robotics
+# try RGB
+#Check how to go out of local min stuck- reset periodically LR too
+# reward calculation as sum: R or without
 def rgb2gray(rgb, norm):
     #Consider to normalize features
     gray = np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
@@ -90,12 +95,12 @@ def Plot(array, save):
     ''' Plot 1D array '''    
     plt.plot(array)
     axes = plt.gca()
-    #axes.set_xlim([xmin,xmax])
-    axes.set_ylim([-2000,10])
-    plt.xlabel('batch')
+    axes.set_xlim([900,1500])
+    axes.set_ylim([-10,200])
+    plt.xlabel('Episodes')
     plt.ylabel('array')
     plt.title('plot')
     plt.grid(True)
     if save:
-        plt.savefig("plot.png")
+        plt.savefig("Rplot.png")
     plt.show()
