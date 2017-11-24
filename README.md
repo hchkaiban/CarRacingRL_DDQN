@@ -1,6 +1,5 @@
 # CarRacingRL
-Double Deep Q learning from Deep Mind's "Playing Atari with Deep Reinforcement Learning" dec 2013.
-Special thanks to https://github.com/jaara.
+Double Deep Q learning from Deep Mind's "Playing Atari with Deep Reinforcement Learning" dec 2013. 
 
 CarRacing-v0:
 Actions: Steering: real valued in [-1, 1] Gas: real valued in [0, 1] Break: real valued in [0, 1]
@@ -28,4 +27,6 @@ RLImitation folder:
 
 # Result:
 
-The car drives smoothly both on training and of random tracks. It does not immobilize anymore and is able to recover from off-road situations most of the time. More training time and data would keep improving the driving preformances. 
+The car drives smoothly both on training and of random tracks. It does not immobilize anymore and is able to recover from off-road situations most of the time. More training time and data would keep improving the preformances. 
+
+Very usefull repo: https://github.com/jaara.
