@@ -20,26 +20,17 @@ DataPath = "data/play"
 RBGMode = True          #If false, recorded data shall be Gray
 ConvFolder2Gray = False #If True, recorded RGB data is converted to Gray
 
-#Number of images to stack and train (memory)
-#Shall be Either 4 or 0 (1 same as 0) else keras model in CarRacing_Learn shall be updated either
-
-
 Temporal_Buffer = 4 
 
 
-#try to feed in diffs of images and remove bias in CNN
-# Cyclic epslilon decay (reinit after a number of preriods - same possible for learning rate)
-#Coursera robotics
-# try RGB
-#Check how to go out of local min stuck- reset periodically LR too
-# reward calculation as sum: R or without
 def rgb2gray(rgb, norm):
-    #Consider to normalize features
+   
     gray = np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
     
     if norm:
-        gray = gray.astype('float32') / 128 - 1 # normalize
-        #check typecased division if float
+        # normalize
+        gray = gray.astype('float32') / 128 - 1 
+
     return gray 
 
 
@@ -61,7 +52,7 @@ def save_data(Path, action_l, reward_l, state_l):
             image = rgb2gray(state_l[i])
         else:
             image = state_l[i]
-        ##misc.imsave("d7ata/Img"+str(i)+".png", state_l[i])
+
         misc.imsave(Path+"/Img"+str(i)+".png", image)
       
         
