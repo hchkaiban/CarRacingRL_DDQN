@@ -27,6 +27,6 @@ RLImitation folder:
 
 # Result:
 
-The car drives smoothly both on training and of random tracks. It does not immobilize anymore and is able to recover from off-road situations most of the time. More training time and data would keep improving the preformances. 
+The car drives smoothly, at decent speed, both on training and of random tracks. It does not immobilize anymore and is able to recover most of the time from off-road situations. Longer training and more data would keep improving the performances. 
 
 Thanks to Jaara for the usefull repo: https://github.com/jaara.
