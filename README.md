@@ -1,9 +1,9 @@
 # CarRacingRL
 Double Deep Q learning from Deep Mind's "Playing Atari with Deep Reinforcement Learning" dec 2013. 
 
-CarRacing-v0:
-Actions: Steering: real valued in [-1, 1] Gas: real valued in [0, 1] Break: real valued in [0, 1]
-Observations: STATE_W = 96 * STATE_H = 96 * 3 : RGB Image
+CarRacing-v0: 
+Actions: Steering: real valued in [-1, 1] Gas: real valued in [0, 1] Break: real valued in [0, 1] 
+Observations: STATE_W = 96 * STATE_H = 96 * 3 : RGB Image 
 Reward: +1000/N for every N tile on track else -0,1
 
 DDQN benchmarked on pendulum-v0: 
@@ -29,4 +29,4 @@ RLImitation folder:
 
 The car drives smoothly, at decent speed, both on training and of random tracks. It does not immobilize anymore and is able to recover most of the time from off-road situations. Longer training and more data would keep improving the performances. 
 
-Thanks to Jaara for the usefull repo: https://github.com/jaara.
+Thanks to Jaara for the useful repo: https://github.com/jaara.
