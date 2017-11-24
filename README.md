@@ -21,5 +21,6 @@ RLImitation folder:
 - Reward_Values_Actions.png: reward in time
 - RL_IM_cp500.webm: Demo 
 
-#Result:
+# Result:
+
 The car drives smoothly both on training and of random tracks. It does not immobilize anymore and is able to recover from off-road situations most of the time. More training time and data would keep improving the driving preformances. 
