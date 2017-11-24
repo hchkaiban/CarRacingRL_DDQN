@@ -9,7 +9,7 @@ Reward: +1000/N for every N tile on track else -0,1
 DDQN benchmarked on pendulum-v0: 
 - Pendulum_RL_DDQN_linearAct.py
 - Pendulum_QL.py: simple QL
-- Pendulum_QL_Reward.png: Learning/ Exploration curve
+- Pendulum_DDQN_Reward.png: Learning/ Exploration DDQN curve
 
 Application of DDQN to CarRacing-v0:
 - CarConfig.py: Global configuration 
@@ -29,4 +29,4 @@ RLImitation folder:
 
 The car drives smoothly both on training and of random tracks. It does not immobilize anymore and is able to recover from off-road situations most of the time. More training time and data would keep improving the preformances. 
 
-Very usefull repo: https://github.com/jaara.
+Thanks to Jaara for the usuefull repo: https://github.com/jaara.
