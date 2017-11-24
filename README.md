@@ -1,6 +1,11 @@
 # CarRacingRL
-Double Deep Q learning from Deep Mind's "Playing Atari with Deep Reinforcement Learning" dec 2013-
+Double Deep Q learning from Deep Mind's "Playing Atari with Deep Reinforcement Learning" dec 2013.
 Special thanks to https://github.com/jaara.
+
+CarRacing-v0:
+Actions: Steering: real valued in [-1, 1] Gas: real valued in [0, 1] Break: real valued in [0, 1]
+Observations: STATE_W = 96 * STATE_H = 96 * 3 : RGB Image
+Reward: +1000/N for every N tile on track else -0,1
 
 DDQN benchmarked on pendulum-v0: 
 - Pendulum_RL_DDQN_linearAct.py
