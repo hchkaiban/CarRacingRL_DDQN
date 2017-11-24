@@ -11,7 +11,7 @@ import numpy as np
 
 
 ModelsPath = CarConfig.ModelsPath
-LoadWeithsAndTest = False  #Validate model, no training
+LoadWeithsAndTest = True  #Validate model, no training
 LoadWeithsAndTrain = False  #Load model and saved agent and train further
 TrainEnvRender = False       #Diplay game while training
 
@@ -312,7 +312,6 @@ class RandomAgent:
         self.rand = True
 
     def act(self, s):
-        np.random.seed(1)
         best_act = np.random.randint(self.actionCnt)
         return SelectAction(best_act), SelectAction(best_act)
 
@@ -330,7 +329,7 @@ class Environment:
     def __init__(self, problem):
         self.problem = problem
         self.env = gym.make(problem)
-        self.env.seed(ENV_SEED)
+        self.env.seed(5)
         from gym import envs
         envs.box2d.car_racing.WINDOW_H = 500
         envs.box2d.car_racing.WINDOW_W = 600
@@ -490,6 +489,7 @@ if __name__ == "__main__":
     assert action_buffer.shape[1] == actionCnt, "Lenght of Env action space does not match action buffer"
     
     random.seed(901)
+    np.random.seed(1)
     agent = Agent(stateCnt, NumberOfDiscActions)
     randomAgent = RandomAgent(NumberOfDiscActions)
     
@@ -561,6 +561,8 @@ if __name__ == "__main__":
             while done_ctr < 5 :
                 env.test(agent)
                 done_ctr += 1
+            
+            env.env.close()
                               
     except KeyboardInterrupt:
         print('User interrupt')

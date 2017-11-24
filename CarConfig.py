@@ -95,8 +95,8 @@ def Plot(array, save):
     ''' Plot 1D array '''    
     plt.plot(array)
     axes = plt.gca()
-    axes.set_xlim([900,1500])
-    axes.set_ylim([-10,200])
+    axes.set_xlim([0,1500])
+    axes.set_ylim([-200,200])
     plt.xlabel('Episodes')
     plt.ylabel('array')
     plt.title('plot')
