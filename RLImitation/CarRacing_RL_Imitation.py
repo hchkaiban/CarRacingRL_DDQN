@@ -11,7 +11,7 @@ import numpy as np
 import CarRacing_ImitationPolicy
 
 ModelsPath = CarConfig.ModelsPath
-LoadWeithsAndTest = False  #Validate model, no training
+LoadWeithsAndTest = True #Validate model, no training
 LoadWeithsAndTrain = True  #Load model and saved agent and train further
 TrainEnvRender = True      #Diplay game while training
 
@@ -384,7 +384,9 @@ class Environment:
         self.reward = []    
         self.step = 0
         self.action_stuck = 0
-        self.throttle = self.steering = self.brake = []
+        self.throttle = [] 
+        self.steering = []
+        self.brake = []
         
         self.f, self.ax = plt.subplots(1,3)
         
@@ -525,7 +527,11 @@ class Environment:
                         act = np.concatenate([[agent.Imitate.Predict_Angle(s_im)], act])
                     else:
                         act = agent.act(self.s, s_im)
-                        
+                
+                    self.steering.append(act[0])
+                    self.throttle.append(act[1])
+                    self.brake.append(act[2])
+                
                 s_im, r, done, info = self.env.step(act)
                 img = CarConfig.rgb2gray(s_im, True)
                 R += r
@@ -589,7 +595,46 @@ class Environment:
         plt.close(f)
         #gc.collect()
 
-           
+def plot_scatter():
+    
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.scatter(env.steering, env.throttle, s=15, alpha=0.5, label= 'Throttle')
+    ax.scatter(env.steering, env.brake, s=3, color='red', alpha=0.3, label= 'Brake')
+    ax.legend(loc='upper right')
+    ax.set_title('Actions scatter plot')
+    #plt.scatter(env.steering, env.throttle, alpha=0.5)
+    #plt.scatter(env.steering, env.brake, color='red', alpha=0.5)
+    plt.show() 
+    fig.savefig('Actions_scatter')
+
+#    f = plt.figure(0)
+#    f.set_figwidth(10)
+#    ax = f.gca()
+#    ax.set_title('Training Loss')
+#    #ax1.set_xlim([0,50])
+#    ax.plot(env.throttle, label= 'Loss')
+#    ax.legend(loc='lower right')
+#    
+#    f = plt.figure(1)
+#    f.set_figwidth(10)
+#    ax = f.gca()
+#    ax.set_title('Training Loss')
+#    #ax1.set_xlim([0,50])
+#    ax.plot(env.brake, label= 'Loss')
+#    ax.legend(loc='lower right')
+#    
+#    f = plt.figure(2)
+#    f.set_figwidth(10)
+#    ax = f.gca()
+#    ax.set_title('Training Loss')
+#    #ax1.set_xlim([0,50])
+#    ax.plot(env.steering, label= 'Loss')
+#    ax.legend(loc='lower right')
+    
+    #f.show()
+
+       
         
 #-------------------- MAIN ----------------------------
 if __name__ == "__main__":
@@ -673,16 +718,17 @@ if __name__ == "__main__":
             agent.brain.model.load_weights(ModelsPath+"CarRacing_DDQN_model_cp_per_500.h5")
             
             done_ctr = 0
-            while done_ctr < 5 :
+            while done_ctr < 20 :
                 env.test(agent)
                 done_ctr += 1
                 
+            plot_scatter()    
             env.env.close()
                               
     except KeyboardInterrupt:
         print('User interrupt')
         env.env.close()
-        
+        plot_scatter()
         if LoadWeithsAndTest == False:
              print('Save model: Y or N?')
              save = input()
