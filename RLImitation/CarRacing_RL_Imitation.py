@@ -603,36 +603,10 @@ def plot_scatter():
     ax.scatter(env.steering, env.brake, s=3, color='red', alpha=0.3, label= 'Brake')
     ax.legend(loc='upper right')
     ax.set_title('Actions scatter plot')
-    #plt.scatter(env.steering, env.throttle, alpha=0.5)
-    #plt.scatter(env.steering, env.brake, color='red', alpha=0.5)
+
     plt.show() 
     fig.savefig('Actions_scatter')
 
-#    f = plt.figure(0)
-#    f.set_figwidth(10)
-#    ax = f.gca()
-#    ax.set_title('Training Loss')
-#    #ax1.set_xlim([0,50])
-#    ax.plot(env.throttle, label= 'Loss')
-#    ax.legend(loc='lower right')
-#    
-#    f = plt.figure(1)
-#    f.set_figwidth(10)
-#    ax = f.gca()
-#    ax.set_title('Training Loss')
-#    #ax1.set_xlim([0,50])
-#    ax.plot(env.brake, label= 'Loss')
-#    ax.legend(loc='lower right')
-#    
-#    f = plt.figure(2)
-#    f.set_figwidth(10)
-#    ax = f.gca()
-#    ax.set_title('Training Loss')
-#    #ax1.set_xlim([0,50])
-#    ax.plot(env.steering, label= 'Loss')
-#    ax.legend(loc='lower right')
-    
-    #f.show()
 
        
         
