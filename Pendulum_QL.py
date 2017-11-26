@@ -1,7 +1,7 @@
 import numpy as np
 import gym
 import CarConfig
-from keras.layers import Dense, Flatten, Input
+from keras.layers import Dense, Flatten, Input, Dropout
 from keras.models import Model
 import keras.optimizers as Kopt
 import logging
@@ -21,12 +21,14 @@ HUBER_LOSS_DELTA = 1.0
 
 MAX_REWARD = 2000
 MAX_EPSILON = 1
-MIN_EPSILON = 0.05       
+MIN_EPSILON = 0.1       
 EXPLORATION_STOP = 1000   # at this step epsilon will be MIN_EPSILON
 LAMBDA = - math.log(0.01) / EXPLORATION_STOP  # speed of decay fn of episodes of learning agent
+SARSA = True
 
 num_episodes = 100000
 alpha = 0.1
+gamma = 0.2
     
 #action_buffer = np.arange(-2, 2.4, 0.4)
 action_buffer = np.array([-2,2])
@@ -64,8 +66,9 @@ def build_model(input_dim, output_dim):
     x = Flatten()(action_input)
     x = Dense(32, activation="relu")(x)
     x = Dense(32, activation="relu")(x)
+    #x = Dropout(0.1, seed=2)(x)
     x = Dense(16, activation="sigmoid")(x)
-    x = Dense(output_dim, activation="linear")(x)
+    x = Dense(output_dim, activation="sigmoid")(x)
     
     model = Model(inputs=action_input, outputs=x)
     
@@ -126,10 +129,19 @@ def learn(env):
             
             T = len(X)
             G = np.sum(R)
-            for t in range(T):
+            for t in range(T-1):
                 a = A[t]
-                Q[t][a] = (1-alpha) * Q[t][a] + alpha * (G/MAX_REWARD)
-            
+                a1 = A[t+1]
+                
+                if SARSA:
+                    q = Q[t+1][a1] 
+                else:
+                    # Q-learning
+                    q = np.max(Q[t][:])
+                
+                #Q[t][a] = (1-alpha) * Q[t][a] + alpha * (G/MAX_REWARD)
+                Q[t][a] = (1-alpha) * Q[t][a] + alpha * ( (G/MAX_REWARD) + gamma*q)
+                
             obs = np.asarray(X)
             obs = obs[:,np.newaxis,:]
             model.fit(obs, np.asarray(Q), verbose=0, batch_size=T)
