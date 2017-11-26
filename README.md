@@ -33,6 +33,6 @@ RLImitation folder:
 
 # Result:
 
-The car drives smoothly, at decent speed, both on training and of random tracks. It does not immobilize anymore and is able to recover most of the time from off-road situations. Longer training and more data would keep improving the performances. 
+The car learns a  way to synchronize the 3 discretized actions (strong braking, fast acceleration and freewheeling) with the steering policy. After some training time it drives at decent speed, both on training and random tracks; does not immobilize anymore and is able to recover most of the time from off-road situations. Longer training, more data and smoother discrete actions would keep improving the performances. 
 
 Thanks to Jaara for the useful repo: https://github.com/jaara.
