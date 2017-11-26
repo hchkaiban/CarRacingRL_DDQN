@@ -16,6 +16,7 @@ Application of DDQN to CarRacing-v0:
 - CarConfig.py: Global configuration 
 - CarRacing_RL_DDQN_linearAct.py: main file
 - brain_model.png: Keras plot of brain's CNN
+
 ![DDQN_Brain_Model](https://github.com/hchkaiban/CarRacingRL/blob/master/brain_model.png)
 - SumTree.py: Class for priorized memory replay
 
