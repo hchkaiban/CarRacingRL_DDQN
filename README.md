@@ -8,8 +8,9 @@ Reward: +1000/N for every N tile on track else -0,1
 
 DDQN benchmarked on pendulum-v0: 
 - Pendulum_RL_DDQN_linearAct.py
+![Pendulum-v0_DDQL Reward/Exploration](https://github.com/hchkaiban/CarRacingRL/blob/master/Pendulum_DDQN_Reward.png)
 - Pendulum_QL.py: simple QL
-- Pendulum_DDQN_Reward.png: Learning/ Exploration DDQN curve
+
 
 Application of DDQN to CarRacing-v0:
 - CarConfig.py: Global configuration 
