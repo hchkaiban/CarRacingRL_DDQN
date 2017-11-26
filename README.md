@@ -28,8 +28,8 @@ RLImitation folder:
 ![Actions_Scatter](https://github.com/hchkaiban/CarRacingRL/blob/master/RLImitation/Actions_scatter.png)
 - CarRacing_RL_Imitation.py: DDQN applied to throttle and brake 
 - Reward_Values_Actions.png: reward in time
-- RL_IM_cp500.webm: Demo 
-![Simulation_Training_Test](https://github.com/hchkaiban/CarRacingRL/blob/master/RLImitation/RL_IM_cp500.webm)
+- RL_IM_cp500.webm: Video demo 
+![Simulation_TrainingAndTestTracks](https://github.com/hchkaiban/CarRacingRL/blob/master/RLImitation/RL_IM_cp500.webm)
 
 # Result:
 
