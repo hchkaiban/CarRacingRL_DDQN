@@ -20,11 +20,14 @@ Application of DDQN to CarRacing-v0:
 ![DDQN_Brain_Model](https://github.com/hchkaiban/CarRacingRL/blob/master/brain_model.png)
 - SumTree.py: Class for priorized memory replay
 
+
 As the training time revealed excessive, a simpler approach was adopted:
 
 RLImitation folder:
 - CarRacing_ImitationPolicy.py: the steering policiy is learned by imitation learning (see also https://github.com/hchkaiban/CarRacingImitationLearning)
 ![Reward_Values_Actions](https://github.com/hchkaiban/CarRacingRL/blob/master/RLImitation/Reward_Values_Actions.png)
+
+Scatter plot of discretized actions function of the steering angle (note that the car accelerates mostly around 0°)
 ![Actions_Scatter](https://github.com/hchkaiban/CarRacingRL/blob/master/RLImitation/Actions_scatter.png)
 - CarRacing_RL_Imitation.py: DDQN applied to throttle and brake 
 - Reward_Values_Actions.png: reward in time
