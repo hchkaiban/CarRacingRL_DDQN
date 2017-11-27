@@ -13,27 +13,27 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 ModelsPath = CarConfig.ModelsPath
-LoadWeithsAndTest = False
+LoadWeithsAndTest = True
 TrainEnvRender = False
 
 LEARNING_RATE = 0.0001
 HUBER_LOSS_DELTA = 1.0
-
+num_episodes = 100000
 MAX_REWARD = 2000
+
 MAX_EPSILON = 1
 MIN_EPSILON = 0.1       
 EXPLORATION_STOP = 1000   # at this step epsilon will be MIN_EPSILON
 LAMBDA = - math.log(0.01) / EXPLORATION_STOP  # speed of decay fn of episodes of learning agent
-SARSA = True
 
-num_episodes = 100000
-alpha = 0.1
-gamma = 0.2
+SARSA = False
+alpha = 0.98
+gamma = 0.1
     
 #action_buffer = np.arange(-2, 2.4, 0.4)
 action_buffer = np.array([-2,2])
 
-NumberOfDiscActions = len(action_buffer)
+NumberOfDiscActions = len(action_buffer)    
     
 def SelectAction(Act):
     return action_buffer[Act]
@@ -64,12 +64,13 @@ def build_model(input_dim, output_dim):
     
     action_input = Input(shape=(1,)+input_dim)
     x = Flatten()(action_input)
-    x = Dense(32, activation="relu")(x)
-    x = Dense(32, activation="relu")(x)
+    x = Dense(32, activation="tanh")(x)
+    x = Dense(32, activation="tanh")(x)
     #x = Dropout(0.1, seed=2)(x)
-    x = Dense(16, activation="sigmoid")(x)
-    x = Dense(output_dim, activation="sigmoid")(x)
-    
+    x = Dense(16, activation="tanh")(x)
+    x = Dense(output_dim, activation="tanh")(x)
+
+
     model = Model(inputs=action_input, outputs=x)
     
     return model
@@ -93,18 +94,19 @@ def plot_logs(f, ax1, losses):
 def learn(env):
     Gs = []
     steps = 0
+    best_score = -200
     
     for episode in range(num_episodes):
         x = env.reset()
         X, Q, A, R = [], [], [], []
         done = False
-        if TrainEnvRender :
-            env.render()
         
         if not LoadWeithsAndTest : 
             rand = 0
             while not done:
                
+                if TrainEnvRender :
+                    env.render()
                 epsilon = MIN_EPSILON + (MAX_EPSILON - MIN_EPSILON) * math.exp(-LAMBDA * steps)
                 
                 if random.random() < epsilon:
@@ -129,19 +131,25 @@ def learn(env):
             
             T = len(X)
             G = np.sum(R)
-            for t in range(T-1):
+            for t in range(T):
                 a = A[t]
-                a1 = A[t+1]
                 
-                if SARSA:
-                    q = Q[t+1][a1] 
+                if t == T-1 :
+                    Q[t][a] = (1-alpha) * Q[t][a] + alpha * R[t]
                 else:
-                    # Q-learning
-                    q = np.max(Q[t][:])
+                    if SARSA:
+                        qv = Q[t+1][A[t+1]] 
+                    else:
+                        # Q-learning
+                        qv = np.max(Q[t+1][:])
+            
+                    #Q[t][a] = (1-alpha) * Q[t][a] + alpha * (G/MAX_REWARD)
+                    Q[t][a] = (1-alpha) * Q[t][a] + alpha * ( (R[t+1]) + gamma* qv)
                 
-                #Q[t][a] = (1-alpha) * Q[t][a] + alpha * (G/MAX_REWARD)
-                Q[t][a] = (1-alpha) * Q[t][a] + alpha * ( (G/MAX_REWARD) + gamma*q)
-                
+            if G > best_score : 
+                  best_score = G
+                  model.save(ModelsPath+"Pendulum_QL_model_best.h5")
+                  
             obs = np.asarray(X)
             obs = obs[:,np.newaxis,:]
             model.fit(obs, np.asarray(Q), verbose=0, batch_size=T)
@@ -154,7 +162,7 @@ def learn(env):
                     logger.debug("Mean act: %.2f, Mean Rand %.2f" % (np.mean(A), rand/T)) 
                 plot_logs(f, ax, Gs)
         else:
-            model.load_weights(ModelsPath+"Pendulum_QL_model.h5")
+            model.load_weights(ModelsPath+"Pendulum_QL_model_best.h5")
             
             done_ctr = 0
             R = []
