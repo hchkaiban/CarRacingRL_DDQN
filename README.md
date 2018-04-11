@@ -1,12 +1,12 @@
-Double Deep Q learning from Deep Mind's "Playing Atari with Deep Reinforcement Learning" dec 2013 with latest iprovements from 2016.
+Double Deep Q Network from Deep Mind's "Playing Atari with Deep Reinforcement Learning" dec 2013 with latest improvements from 2016 (target network periodical update and priorized experience replay).
 The algorithm is first validated on pendulum-v0 and then applied to the CarRacing-v0. 
 
-### CarRacing-v0: 
+CarRacing-v0: 
 Actions: Steering: real valued in [-1, 1] Gas: real valued in [0, 1] Break: real valued in [0, 1] 
 Observations: STATE_W = 96 * STATE_H = 96 * 3 : RGB Image 
 Reward: +1000/N for every N tile on track else -0,1
 
-## DDQN algorithm first benchmarked on pendulum-v0: 
+### DDQN algorithm first benchmarked on pendulum-v0: 
 - Pendulum_RL_DDQN_linearAct.py
 ![Pendulum-v0_DDQL Reward/Exploration](https://github.com/hchkaiban/CarRacingRL/blob/master/Pendulum_DDQN_Reward.png)
 - Pendulum_QL.py: simple QL
@@ -34,6 +34,6 @@ Scatter plot of discretized actions function of the steering angle (note that th
 ![Simulation_TrainingAndTestTracks](https://github.com/hchkaiban/CarRacingRL/blob/master/RLImitation/RL_IM_cp500.webm)
 
 # Result:
-Three challenging discreet actions were choosen in order to prove that the algorithm learns a meaningful way to synchronize them: strong braking, fast acceleration or free wheeling (no action). As shown by the scatter plot and demo video, it manages to synchronize them with the steering policy: after some training time teh car drives at decent speed, both on training and random tracks, does not immobilize anymore and is able to recover most of the time from off-road situations. Longer training, more data and smoother discrete actions would keep improving the performances. 
+Three challenging discreet actions were chosen in order to prove that the algorithm learns a meaningful way to synchronize them: strong braking, fast acceleration or free wheeling (no action). As shown by the scatter plot and demo video, it manages to synchronize them with the steering policy: after some training time teh car drives at decent speed, both on training and random tracks, does not immobilize anymore and is able to recover most of the time from off-road situations. Longer training, more data and smoother discrete actions would keep improving the performances. 
 
 Thanks to Jaara for the useful repo: https://github.com/jaara.
