@@ -1,7 +1,8 @@
 Double Deep Q Network from Deep Mind's "Playing Atari with Deep Reinforcement Learning" dec 2013 with latest improvements from 2016 (target network periodical update and priorized experience replay).
 The algorithm is first validated on pendulum-v0 and then applied to the CarRacing-v0. 
 
-CarRacing-v0: 
+CarRacing-v0:
+
 Actions: Steering: real value in [-1, 1] Gas: real value in [0, 1] Break: real value in [0, 1]
 
 Observations: STATE_W = 96 * STATE_H = 96 * 3 : RGB Image 
