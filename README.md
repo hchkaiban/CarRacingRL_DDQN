@@ -3,8 +3,11 @@ Double Deep Q Network from Deep Mind's "Playing Atari with Deep Reinforcement Le
 The algorithm is first validated on pendulum-v0 and then applied to the CarRacing-v0. 
 
 CarRacing-v0:
+
 Actions: Steering: real value in [-1, 1] - Gas: real value in [0, 1] - Brake: real value in [0, 1]
+
 Observations: STATE_W = 96 * STATE_H = 96 * 3 : RGB Image 
+
 Reward: +1000/N for every N tile on track else -0,1
 
 ### - DDQN algorithm first benchmarked on pendulum-v0: 
