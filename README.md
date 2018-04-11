@@ -1,3 +1,4 @@
+# Double Deep Q Network for gym openai CarRacing game
 Double Deep Q Network from Deep Mind's "Playing Atari with Deep Reinforcement Learning" dec 2013 with latest improvements from 2016 (target network periodical update and priorized experience replay).
 The algorithm is first validated on pendulum-v0 and then applied to the CarRacing-v0. 
 
